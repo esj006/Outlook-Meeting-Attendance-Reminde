@@ -114,20 +114,41 @@ Sub SendEmailToSelectedResponders()
     
     ' Loop through recipients
     For Each olRecipient In olAppointment.Recipients
-        ' Expand distribution lists
-        If olRecipient.AddressEntry.GetExchangeUser Is Nothing Then
-            Dim oMembers As AddressEntries
-            Dim oMember As AddressEntry
-            
-            Set oMembers = olRecipient.AddressEntry.Members
-            If Not oMembers Is Nothing Then
-                For Each oMember In oMembers
-                    AddRecipientToBCC olAppointment, oMember, bccList, includeNone, includeTentative, organizerName, organizerProcessed
-                Next oMember
-            End If
-        Else
-            AddRecipientToBCC olAppointment, olRecipient.AddressEntry, bccList, includeNone, includeTentative, organizerName, organizerProcessed
+        ' Skip resources (meeting rooms, equipment)
+        If olRecipient.Type = olResource Then
+            GoTo NextRecipient
         End If
+
+        ' Retrieve the recipient's response status
+        Dim responseStatus As OlResponseStatus
+        responseStatus = olRecipient.MeetingResponseStatus
+
+        ' Exclude accepted responses
+        If responseStatus = olResponseAccepted Then
+            GoTo NextRecipient
+        End If
+
+        ' Include recipients based on user's choices
+        If (includeNone = vbYes And responseStatus = olResponseNone) Or _
+           (includeTentative = vbYes And responseStatus = olResponseTentative) Then
+
+            ' Avoid listing the organizer twice
+            If olRecipient.Name = organizerName Then
+                If Not organizerProcessed Then
+                    organizerProcessed = True
+                Else
+                    GoTo NextRecipient
+                End If
+            End If
+
+            ' Add recipient to BCC list
+            If bccList = "" Then
+                bccList = olRecipient.Address
+            Else
+                bccList = bccList & ";" & olRecipient.Address
+            End If
+        End If
+
 NextRecipient:
     Next olRecipient
     
@@ -139,22 +160,24 @@ NextRecipient:
     
     ' Generate subject and body
     subject = "Awaiting Your Feedback on " & Chr(34) & olAppointment.Subject & Chr(34)
-    emailBody = "Dear Colleague," & vbCrLf & vbCrLf & _
-                "We're reaching out as a reminder regarding our previous communication. " & _
+    emailBody = "<p>Dear Colleague,</p>" & _
+                "<p>We're reaching out as a reminder regarding our previous communication. " & _
                 "We've yet to receive a response or noted it as None/Tentative. " & _
                 "We understand busy schedules and want to ensure our message is acknowledged. " & _
                 "If this has been addressed, please disregard this message. " & _
-                "We appreciate your prompt attention." & vbCrLf & vbCrLf & _
-                "Best regards," & vbCrLf & _
-                "Your Name" ' Change "Your Name" to your actual name or signature
+                "We appreciate your prompt attention.</p>" & _
+                "<p>Best regards,</p>"
     
     ' Create a new mail item
     Set olMail = olApp.CreateItem(olMailItem)
     With olMail
         .BCC = bccList
         .Subject = subject
-        .Body = emailBody
+        .BodyFormat = olFormatHTML
         .Display ' This will display the email. Use .Send to send directly
+        
+        ' Append the signature
+        .HTMLBody = emailBody & .HTMLBody
         
         ' Check names (resolve all recipients)
         .Recipients.ResolveAll
@@ -174,33 +197,4 @@ NextRecipient:
     Set olFolder = Nothing
     Set olNamespace = Nothing
     Set olApp = Nothing
-End Sub
-
-Sub AddRecipientToBCC(appointment As AppointmentItem, oRecipient As AddressEntry, ByRef bccList As String, includeNone As VbMsgBoxResult, includeTentative As VbMsgBoxResult, organizerName As String, ByRef organizerProcessed As Boolean)
-    Dim olRecipient As Outlook.Recipient
-    Dim olResponseStatus As OlResponseStatus
-    Dim tempRecipient As Recipient
-    
-    ' Create a temporary recipient to get the response status
-    Set tempRecipient = appointment.Recipients.Add(oRecipient.Address)
-    tempRecipient.Resolve
-    olResponseStatus = tempRecipient.MeetingResponseStatus
-    appointment.Recipients.Remove appointment.Recipients.Count ' Remove temporary recipient
-    
-    ' Include recipients based on user's choices
-    If (includeNone = vbYes And olResponseStatus = olResponseNone) Or (includeTentative = vbYes And olResponseStatus = olResponseTentative) Then
-        If oRecipient.Name = organizerName Then
-            If Not organizerProcessed Then
-                organizerProcessed = True
-            Else
-                Exit Sub
-            End If
-        End If
-        
-        If bccList = "" Then
-            bccList = oRecipient.Address
-        Else
-            bccList = bccList & ";" & oRecipient.Address
-        End If
-    End If
 End Sub
