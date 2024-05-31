@@ -49,6 +49,9 @@ This repository contains a VBA macro for Microsoft Outlook that helps send remin
 - **Resolve Recipients:** Added functionality to resolve all recipients' addresses, removing any unresolved or invalid addresses automatically to prevent errors.
 - **Enhanced Response Status Checking:** The macro creates a temporary recipient to accurately fetch the response status for each member of a distribution list, then removes the temporary recipient to maintain a clean state.
 
+- **0.3-beta**
+  - Added Distribution List Handling: The macro now checks for distribution lists and prompts the user to expand them to individual members for accurate response tracking.
+
 ## Contributing
 Feel free to submit issues, fork the repository, and make pull requests. Contributions are welcome!
 
@@ -74,8 +77,9 @@ Sub SendEmailToSelectedResponders()
     Dim includeNone As VbMsgBoxResult
     Dim includeTentative As VbMsgBoxResult
     Dim organizerName As String
-    Dim organizerCount As Integer
     Dim organizerProcessed As Boolean
+    Dim hasDistList As Boolean
+    Dim distListNames As String
     
     ' Initialize Outlook objects
     Set olApp = Outlook.Application
@@ -98,9 +102,25 @@ Sub SendEmailToSelectedResponders()
     Set olAppointment = Outlook.Application.ActiveExplorer.Selection.Item(1)
     
     ' Get the organizer's name
-    organizerName = olAppointment.GetOrganizer.Name
-    organizerCount = 0
+    organizerName = olAppointment.Organizer
     organizerProcessed = False
+    hasDistList = False
+    distListNames = ""
+    
+    ' Loop through recipients to check for distribution lists
+    For Each olRecipient In olAppointment.Recipients
+        ' Check if the recipient is a distribution list
+        If olRecipient.AddressEntry.AddressEntryUserType = olDistList Then
+            hasDistList = True
+            distListNames = distListNames & vbCrLf & "- " & olRecipient.Name
+        End If
+    Next olRecipient
+    
+    ' If there are distribution lists, show a message and exit
+    If hasDistList Then
+        MsgBox "The following recipients are distribution lists, and their responses cannot be tracked individually:" & vbCrLf & distListNames & vbCrLf & "Please expand the distribution lists to individual members and resend the invitation to track responses.", vbExclamation
+        Exit Sub
+    End If
     
     ' Ask the user if they want to include recipients with "None" response
     includeNone = MsgBox("Do you want to include recipients with 'None' response?", vbYesNo, "Include None Response")
@@ -111,13 +131,13 @@ Sub SendEmailToSelectedResponders()
     ' Initialize BCC list
     bccList = ""
     
-    ' Loop through recipients
+    ' Loop through recipients to build the BCC list
     For Each olRecipient In olAppointment.Recipients
         ' Skip resources (meeting rooms, equipment)
         If olRecipient.Type = olResource Then
             GoTo NextRecipient
         End If
-
+        
         ' Retrieve the recipient's response status
         Dim responseStatus As OlResponseStatus
         responseStatus = olRecipient.MeetingResponseStatus
@@ -197,3 +217,4 @@ NextRecipient:
     Set olNamespace = Nothing
     Set olApp = Nothing
 End Sub
+
