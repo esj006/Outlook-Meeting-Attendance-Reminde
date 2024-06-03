@@ -39,7 +39,7 @@ This repository contains a VBA macro for Microsoft Outlook that helps send remin
 - `MeetingAttendanceReminderRibbon.exportedUI`: The exported UI customization file for the Outlook Ribbon.
 
 ## Version
-- Current version: 0.1-beta
+- Current version: 0.3-beta
 
 ## Version History
 ### 0.1-beta
