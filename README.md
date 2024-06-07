@@ -47,10 +47,9 @@ This repository contains a VBA macro for Microsoft Outlook that helps send remin
 
 ### 0.2-beta
 - **Resolve Recipients:** Added functionality to resolve all recipients' addresses, removing any unresolved or invalid addresses automatically to prevent errors.
-- **Enhanced Response Status Checking:** The macro creates a temporary recipient to accurately fetch the response status for each member of a distribution list, then removes the temporary recipient to maintain a clean state.
 
 ### 0.3-beta
-  - Added Distribution List Handling: The macro now checks for distribution lists and prompts the user to expand them to individual members for accurate response tracking.
+  - **Added Distribution List Handling**: The macro now checks for distribution lists and prompts the user to expand them to individual members for accurate response tracking.
 
 ## Contributing
 Feel free to submit issues, fork the repository, and make pull requests. Contributions are welcome!
